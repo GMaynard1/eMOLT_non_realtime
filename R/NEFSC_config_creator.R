@@ -18,7 +18,7 @@
 ##   
 ##
 ## ---------------------------
-NEFSC_Config_Creator=function(config_name,host,port,service_name,username,password){
+NEFSC_Config_Creator=function(config_name,host,port,service_name,username){
   ## Create a list
   x=list(
     "default"=list(
@@ -31,7 +31,7 @@ NEFSC_Config_Creator=function(config_name,host,port,service_name,username,passwo
   x$default$config$port=port
   x$default$config$service_name=service_name
   x$default$config$username=username
-  x$default$config$password=password
+  x$default$config$password=.rs.askForPassword("Please Enter Your Oracle Password")
   ## Write the list out to a yaml file
   filename=paste0(config_name,".yml")
   yaml::write_yaml(
