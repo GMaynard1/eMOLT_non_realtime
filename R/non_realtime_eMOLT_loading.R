@@ -27,16 +27,21 @@ library(measurements)
 library(rjson)
 library(ROracle)
 ## Set the environmental variables. These data have historically been handled in
-##  local time
+##  local time. System time needs to be handled differently depending on the 
+##  time change. 
+setwd("C:/Users/george.maynard/Documents/GitHubRepos/eMOLT_non_realtime")
 Sys.setenv(TZ = "America/New_York")
 Sys.setenv(ORA_SDTZ = "America/New_York")
+year_processed=2022
 ## Source the database connection script
 source("R/NEFSC_db_Connector.R")
 ## Connect to the database
 conn=NEFSC_db_Connector()
+## For DST ONLY
+dbGetQuery(conn=conn,statement="alter session set time_zone='-5:00'")
 ## Select the working directory on the NEFSC file share 
 ## (/EMOLT/data/emoltdbs/non_realtime/)
-setwd(choose.dir())
+setwd("E:/data/emoltdbs/non_realtime/")
 ## Create a new log
 logfile=paste0(
   "change_logs/",
@@ -85,10 +90,10 @@ for(i in 1:length(logging$HEADER$file_list)){
     columns=ncol(data),
     site=data$V1[1],
     logger_serial=data$V2[1],
-    start_date_local=min(data$V4),
-    end_date_local=max(data$V4),
-    min_temp_F=min(data$V6),
-    max_temp_F=max(data$V6),
+    start_date_local=min(data$V4,na.rm=TRUE),
+    end_date_local=max(data$V4,na.rm=TRUE),
+    min_temp_F=min(data$V6,na.rm=TRUE),
+    max_temp_F=max(data$V6,na.rm=TRUE),
     depth_fathoms=data$V8[1]
   )
   setTxtProgressBar(pb,(i-0.8)/length(logging$HEADER$file_list))
@@ -110,17 +115,19 @@ for(i in 1:length(logging$HEADER$file_list)){
   previous=dbGetQuery(
     conn=conn,
     statement=paste0(
-      "SELECT * FROM EMOLT_SENSOR WHERE TIME_LOCAL BETWEEN ",
-      logging$PROCESSING$file$start_date_local,
+      "SELECT * FROM EMOLT_SENSOR WHERE YRDAY0_LOCAL BETWEEN ",
+      yday(logging$PROCESSING$file$start_date_local),
       " AND ",
-      logging$PROCESSING$file$end_date_local,
+      yday(logging$PROCESSING$file$end_date_local),
       " AND SITE = '",
       emolt_sensor$SITE[1],
       "' AND DEPTH_I = ",
-      emolt_sensor$DEPTH_I[1]
+      emolt_sensor$DEPTH_I[1],
+      " AND extract(YEAR from TIME_LOCAL) = ",
+      year_processed
     )
   )
-  setTxtProgressBar(pb,(i+0.4)/length(logging$HEADER$file_list))
+  setTxtProgressBar(pb,(i-0.6)/length(logging$HEADER$file_list))
   if(nrow(previous)!=0){
     failures=data.frame(
       filename=file,
@@ -135,7 +142,7 @@ for(i in 1:length(logging$HEADER$file_list)){
     )
     ## Remove the file from the to do directory
     file.remove(paste0("/data/emoltdbs/non_realtime/to_do/",file))
-    setTxtProgressBar(pb,(i-0.6)/length(logging$HEADER$file_list))
+    setTxtProgressBar(pb,(i-0.5)/length(logging$HEADER$file_list))
   } else {
     ## Attempt to load the data into the "load" table
     loaddata=try(
@@ -156,7 +163,7 @@ for(i in 1:length(logging$HEADER$file_list)){
         reason="ERROR: SEE ERROR LOG FOR MORE DETAILS"
       )
       logging$FAILURE=rbind(logging$FAILURE,failures)
-      setTxtProgressBar(pb,(i-0.6)/length(logging$HEADER$file_list))
+      setTxtProgressBar(pb,(i-0.4)/length(logging$HEADER$file_list))
     } else {
       ## Otherwise, load the data into the production table and clear the load table
       dbWriteTable(
@@ -170,7 +177,7 @@ for(i in 1:length(logging$HEADER$file_list)){
         conn=conn,
         statement='truncate table "EMOLTDBS"."load_emolt_sensor" drop storage'
       )
-      setTxtProgressBar(pb,(i-0.6)/length(logging$HEADER$file_list))
+      setTxtProgressBar(pb,(i-0.3)/length(logging$HEADER$file_list))
       # ## Create a converted version of the table with metric units
       # emolt_sensor_metric=data.frame(
       #   TIME_LOCAL=floor_date(emolt_sensor$TIME_LOCAL,unit="days"),
@@ -187,7 +194,7 @@ for(i in 1:length(logging$HEADER$file_list)){
       #   ),
       #   TIME=emolt_sensor$TIME_LOCAL
       # )
-      setTxtProgressBar(pb,(i-0.5)/length(logging$HEADER$file_list))
+      setTxtProgressBar(pb,(i-0.2)/length(logging$HEADER$file_list))
       ## Add a success record
       success=data.frame(
         filename=file,
@@ -201,7 +208,7 @@ for(i in 1:length(logging$HEADER$file_list)){
       )
       ## Remove the file from the to do directory
       file.remove(paste0("/data/emoltdbs/non_realtime/to_do/",file))
-      setTxtProgressBar(pb,(i-0.3)/length(logging$HEADER$file_list))
+      setTxtProgressBar(pb,(i-0.1)/length(logging$HEADER$file_list))
     }
   }
   ## Rename log to reflect filename
@@ -215,16 +222,16 @@ for(i in 1:length(logging$HEADER$file_list)){
     file,
     names(logging$ERRORS)
   )
-  setTxtProgressBar(pb,(i-0.2)/length(logging$HEADER$file_list))
+  setTxtProgressBar(pb,(i-0.05)/length(logging$HEADER$file_list))
   ## Write out the log
   jsonlite::write_json(logging,logfile)
-  setTxtProgressBar(pb,(i-0.1)/length(logging$HEADER$file_list))
+  setTxtProgressBar(pb,(i-0.01)/length(logging$HEADER$file_list))
   ## Clear everything that isn't the log or the database
   ##  connection
   rm(list=subset(
     ls(),
     ls()%in%c(
-      'conn','logging','NEFSC_db_Connector','i','logfile'
+      'conn','logging','NEFSC_db_Connector','i','logfile','pb','year_processed'
       )==FALSE
     )
   )

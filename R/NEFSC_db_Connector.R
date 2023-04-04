@@ -39,7 +39,8 @@ NEFSC_db_Connector=function(){
     drv=DBI::dbDriver("Oracle"), 
     username=db_config$username, 
     password=db_config$password, 
-    dbname=connect.string
+    dbname=connect.string,
+    prefetch=FALSE
   )
   file.remove(paste0(
     strsplit(config_filename,"[.]")[[1]][1],
