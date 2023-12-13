@@ -84,6 +84,10 @@ for(i in 1:length(logging$HEADER$file_list)){
   setTxtProgressBar(pb,(i-0.9)/length(logging$HEADER$file_list))
   ## Convert timestamp characters to POSIX
   data$V4=ymd_hms(data$V4,tz='America/New_York')
+  ## Drop records that are impacted by the time change (should only be one, max)
+  if(sum(is.na(data$V4))==1){
+    data=subset(data,is.na(data$V4)==FALSE)
+  }
   ## Record summary statistics
   logging$PROCESSING$file=list(
     rows=nrow(data),
