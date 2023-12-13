@@ -32,7 +32,7 @@ library(ROracle)
 setwd("C:/Users/george.maynard/Documents/GitHubRepos/eMOLT_non_realtime")
 Sys.setenv(TZ = "America/New_York")
 Sys.setenv(ORA_SDTZ = "America/New_York")
-year_processed=2022
+year_processed=2023
 ## Source the database connection script
 source("R/NEFSC_db_Connector.R")
 ## Connect to the database
